@@ -1,0 +1,23 @@
+{
+  "briers": [
+    {
+      "name": "raw ensemble softmax(p_llm)",
+      "score": 0.2503375115777944
+    },
+    {
+      "name": "Kalshi softmax(q)",
+      "score": 0.19774161059820256
+    },
+    {
+      "name": "Snowflake META_CALIBRATOR",
+      "score": null
+    },
+    {
+      "name": "sklearn GradientBoostingClassifier",
+      "score": 0.16718408417036418
+    }
+  ],
+  "snowflake_automl": false,
+  "pointer": "C:\\Users\\storoeb\\OneDrive - Milwaukee School of Engineering\\Desktop\\ai club\\uncommonhacks2026\\notebooks\\_calibrator.joblib",
+  "snow_note": " | SNOWFLAKE.ML.CLASSIFICATION: 002037 (42601): Uncaught exception of type 'STATEMENT_ERROR' on line 0 at position -1 : SQL compilation error:\nFailure during expansion of view 'META_TRAIN_TRAIN': SQL compilation error:\nObject 'PROPHET_HACK.PUBLIC.PHASE4_META_KEYS' does not exist or not authorized."
+}

@@ -1,0 +1,9 @@
+name: prophet-demo
+channels:
+  - snowflake
+dependencies:
+  - python=3.11
+  - streamlit
+  - pandas
+  - numpy
+  - snowflake-snowpark-python

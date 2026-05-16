@@ -1,0 +1,15 @@
+{
+  "model": "prophet-agent",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a probabilistic forecaster. Reason carefully and return calibrated probabilities."
+    },
+    {
+      "role": "user",
+      "content": "Question: Will Bitcoin close above $100,000 USD on December 31, 2026?\n\nOutcomes:\n1. Yes\n2. No\n\nMarket price: 0.55\nResolve by: 2026-12-31\nMarket ID: KXBTC-26DEC31-T100000\n\nRespond with calibrated probabilities."
+    }
+  ],
+  "temperature": 0.2,
+  "max_tokens": 512
+}

@@ -1,0 +1,18 @@
+{
+  "raw_ensemble": {
+    "brier": 0.7095454545454546,
+    "aver": -0.24253244401439059
+  },
+  "always_kalshi": {
+    "brier": 0.5,
+    "aver": 0.0
+  },
+  "best_global_alpha_by_aver": {
+    "brier": 0.22868641084703079,
+    "aver": 0.2889686035114773
+  },
+  "learned_policy": {
+    "brier": 0.2286874272595725,
+    "aver": 0.28896731113027935
+  }
+}
