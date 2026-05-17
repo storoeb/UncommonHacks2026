@@ -2,11 +2,11 @@
   "briers": [
     {
       "name": "raw ensemble softmax(p_llm)",
-      "score": 0.2503375115777944
+      "score": 0.24486104142747123
     },
     {
       "name": "Kalshi softmax(q)",
-      "score": 0.19774161059820256
+      "score": 0.21934321246522767
     },
     {
       "name": "Snowflake META_CALIBRATOR",
@@ -14,7 +14,7 @@
     },
     {
       "name": "sklearn GradientBoostingClassifier",
-      "score": 0.16718408417036418
+      "score": 0.1478563355279133
     }
   ],
   "snowflake_automl": false,

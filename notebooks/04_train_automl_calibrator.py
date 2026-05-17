@@ -527,9 +527,11 @@ def main() -> None:
         try:
             with snowflake_cursor() as cur:
                 cur.execute(SCORE_ROWS_SQL)
+                cur.execute("ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 30")
                 cur.execute(
                     "SELECT MARKET_ID, SOURCE, CATEGORY, Q, P_LLM,"
                     " DISAGREEMENT, BASE_RATE, OUTCOME_IDX FROM META_SCORE_ROWS"
+                    " LIMIT 5000"
                 )
                 cols = [d[0].lower() for d in cur.description]
                 score_pdf = pd.DataFrame(cur.fetchall(), columns=cols)
@@ -543,7 +545,7 @@ def main() -> None:
                 )
             print(f"  MERGED META_PREDICTIONS_BACKFILL: {len(_rows)} rows")
         except Exception as e:  # noqa: BLE001
-            print(f"  META_PREDICTIONS_BACKFILL merge deferred: {e}")
+            print(f"  META_PREDICTIONS_BACKFILL skipped (non-critical): {e}")
 
     print(f"\nDone.  sklearn joblib: {JOBLIB_PATH.resolve()}")
     print("Run notebooks/06_train_alpha_policy.py next.")

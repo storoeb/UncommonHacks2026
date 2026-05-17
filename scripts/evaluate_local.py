@@ -141,8 +141,6 @@ async def call_agent_async(
         "probs": probs,
         "outcome_idx": outcome_idx,
     }
-
-
 async def run_eval(resolved: list[dict], url: str, concurrency: int, timeout: float) -> None:
     print(f"Evaluating {len(resolved)} events concurrently (concurrency={concurrency}) against {url}")
     print(f"{'#':<4}  {'Category':<14}  {'Brier':>7}  {'AVER':>7}  {'s':>5}  Title")
@@ -150,11 +148,27 @@ async def run_eval(resolved: list[dict], url: str, concurrency: int, timeout: fl
 
     semaphore = asyncio.Semaphore(concurrency)
     async with httpx.AsyncClient() as client:
-        tasks = [
-            asyncio.create_task(call_agent_async(client, semaphore, url, i+1, e, timeout))
+        tasks = {
+            asyncio.create_task(call_agent_async(client, semaphore, url, i+1, e, timeout)): i
             for i, e in enumerate(resolved)
-        ]
-        results_raw = await asyncio.gather(*tasks)
+        }
+        results_raw = []
+        for fut in asyncio.as_completed(tasks):
+            result = await fut
+            results_raw.append(result)
+            # Print immediately as each result arrives
+            r = result
+            idx = r["idx"]
+            cat = r["category"]
+            title = r["title"]
+            if r["status"] == "skip":
+                print(f"{idx:<4}  {cat:<14}  {'SKIP':>7}  {'?':>7}  {'?':>5}  {title}", flush=True)
+            elif r["status"] in ("error", "parse_error"):
+                elapsed = r.get("elapsed", 0)
+                print(f"{idx:<4}  {cat:<14}  {'ERR':>7}  {'ERR':>7}  {elapsed:>5.1f}  {title}", flush=True)
+            else:
+                b, a, elapsed = r["brier"], r["aver"], r["elapsed"]
+                print(f"{idx:<4}  {cat:<14}  {b:>7.4f}  {a:>7.4f}  {elapsed:>5.1f}  {title}", flush=True)
 
     # Sort by original index for clean output
     results = sorted(results_raw, key=lambda r: r["idx"])
@@ -162,22 +176,15 @@ async def run_eval(resolved: list[dict], url: str, concurrency: int, timeout: fl
     briers, avers = [], []
     errors = 0
     for r in results:
-        idx = r["idx"]
-        cat = r["category"]
-        title = r["title"]
         if r["status"] == "skip":
-            print(f"{idx:<4}  {cat:<14}  {'SKIP':>7}  {'?':>7}  {'?':>5}  {title}")
             errors += 1
         elif r["status"] in ("error", "parse_error"):
-            msg = r.get("error", "parse?")[:20]
-            elapsed = r.get("elapsed", 0)
-            print(f"{idx:<4}  {cat:<14}  {'ERR':>7}  {'ERR':>7}  {elapsed:>5.1f}  {title}  [{msg}]")
             errors += 1
         else:
-            b, a, elapsed = r["brier"], r["aver"], r["elapsed"]
-            briers.append(b)
-            avers.append(a)
-            print(f"{idx:<4}  {cat:<14}  {b:>7.4f}  {a:>7.4f}  {elapsed:>5.1f}  {title}")
+            errors += 1
+            msg = r.get("error", "parse?")[:20]
+            elapsed = r.get("elapsed", 0)
+            print(f"{idx:<4}  {cat:<14}  {'ERR':>7}  {'ERR':>7}  {elapsed:>5.1f}  {title}  [{msg}]", flush=True)
 
     print("-" * 90)
     if briers:
@@ -186,6 +193,16 @@ async def run_eval(resolved: list[dict], url: str, concurrency: int, timeout: fl
         print(f"\nResults over {len(briers)} scored events ({errors} errors/skips):")
         print(f"  Mean Brier : {mean_b:.4f}  (lower is better; always-Kalshi ≈ 0.50 for binary)")
         print(f"  Mean AVER  : {mean_a:.4f}  (higher is better; matching market = 0.00)")
+
+        # Binary-only breakdown (2 outcomes = binary)
+        binary_results = [r for r in results if r["status"] == "ok" and len(r.get("probs", [])) == 2]
+        if binary_results:
+            bb = sum(r["brier"] for r in binary_results) / len(binary_results)
+            ba = sum(r["aver"] for r in binary_results) / len(binary_results)
+            print(f"\n  Binary-only ({len(binary_results)} questions):")
+            print(f"  Mean Brier : {bb:.4f}")
+            print(f"  Mean AVER  : {ba:.4f}")
+
         print(f"\n  Paste into PITCH.md:  Brier={mean_b:.3f}  AVER={mean_a:.3f}")
     else:
         print("\nNo events scored successfully.")

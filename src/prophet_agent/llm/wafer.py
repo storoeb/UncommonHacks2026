@@ -172,6 +172,13 @@ class WaferClient:
         self._key = api_key or _load_key()
         self._base = base_url.rstrip("/")
         self._timeout = timeout_s
+        # Persistent connection pool — one client reused across all calls on
+        # this key. Avoids opening a new TCP connection per request, which
+        # breaks at high concurrency.
+        self._http = httpx.AsyncClient(
+            timeout=timeout_s,
+            limits=httpx.Limits(max_connections=200, max_keepalive_connections=50),
+        )
 
     async def chat(
         self,
@@ -180,12 +187,7 @@ class WaferClient:
         temperature: float = 0.4,
         max_tokens: int = 3500,
     ) -> tuple[str, float]:
-        """Returns (response_text, latency_seconds).
-
-        Wafer models are reasoning models — `content` is what we want, but they
-        first emit `reasoning_content`. With too-low max_tokens, `content` is
-        null. Default 3500 leaves room after reasoning.
-        """
+        """Returns (response_text, latency_seconds)."""
         url = f"{self._base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self._key}",
@@ -199,16 +201,13 @@ class WaferClient:
         }
         loop = asyncio.get_event_loop()
         start = loop.time()
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            r = await client.post(url, json=body, headers=headers)
-            r.raise_for_status()
-            data = r.json()
+        r = await self._http.post(url, json=body, headers=headers)
+        r.raise_for_status()
+        data = r.json()
         latency = loop.time() - start
         msg = data["choices"][0]["message"]
         text = msg.get("content")
         if not text:
-            # Reasoning hit the token cap before content was emitted. Fall back
-            # to reasoning_content so the parser at least has something to chew on.
             text = msg.get("reasoning_content") or ""
         return text, latency
 

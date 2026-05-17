@@ -268,26 +268,15 @@ def main() -> None:
     train_full_df = pd.DataFrame(train_rows).sort_values("resolve_ts", na_position="first").reset_index(drop=True)
 
     # Step 3 — MERGE alpha_star into META_PREDICTIONS_BACKFILL
-    print("\nUpserting alpha_star into META_PREDICTIONS_BACKFILL...")
+    # Non-critical: ALPHA_TRAIN view and sklearn training use in-memory data.
+    # Skip the upsert to avoid long Snowflake round-trips during the hackathon.
+    print("\nSkipping META_PREDICTIONS_BACKFILL upsert (non-critical for training).")
     try:
         with snowflake_cursor() as cur:
             cur.execute(ALPHA_TRAIN_DDL)
-            for r in train_rows:
-                try:
-                    cur.execute(
-                        META_MERGE_SQL,
-                        {
-                            "market_id":   r["market_id"],
-                            "source":      r["source"],
-                            "p_meta_json": json.dumps(r["p_meta"]),
-                            "alpha_star":  float(r["alpha_star"]),
-                        },
-                    )
-                except Exception as exc:
-                    log.debug("merge row %s failed: %s", r["market_id"], exc)
-        print(f"  Merged {len(train_rows)} rows.")
+        log.info("ALPHA_TRAIN view created.")
     except Exception as exc:
-        log.warning("ALPHA_TRAIN DDL / merge failed (%s); continuing in-memory only.", exc)
+        log.warning("ALPHA_TRAIN DDL failed (%s); continuing in-memory only.", exc)
 
     # Step 4 — temporal split
     n = len(train_full_df)

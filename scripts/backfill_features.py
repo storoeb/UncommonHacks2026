@@ -67,14 +67,21 @@ _WORK_QUEUE_SQL = """
     WHERE e.market_id IS NULL
       AND m.question_text IS NOT NULL
       AND m.realized_outcome IS NOT NULL
+      {category_filter}
     LIMIT %(limit)s
 """
 
 
-def fetch_work_queue(limit: int) -> list[dict[str, Any]]:
+def fetch_work_queue(limit: int, only_categories: list[str] | None = None) -> list[dict[str, Any]]:
     """Return rows that need backfilling, up to `limit`."""
+    if only_categories:
+        placeholders = ", ".join(f"'{c}'" for c in only_categories)
+        cat_filter = f"AND m.category IN ({placeholders})"
+    else:
+        cat_filter = ""
+    sql = _WORK_QUEUE_SQL.format(category_filter=cat_filter)
     with snowflake_cursor() as cur:
-        cur.execute(_WORK_QUEUE_SQL, {"limit": int(limit)})
+        cur.execute(sql, {"limit": int(limit)})
         cols = [d[0].lower() for d in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
@@ -396,13 +403,21 @@ def main() -> None:
         action="store_true",
         help="skip the cost-confirmation prompt",
     )
+    ap.add_argument(
+        "--only-categories",
+        type=str,
+        default=None,
+        help="comma-separated category filter e.g. 'Sports,Entertainment'",
+    )
     args = ap.parse_args()
+
+    only_cats = [c.strip() for c in args.only_categories.split(",")] if args.only_categories else None
 
     t0 = time.time()
 
-    print(f">>> Fetching work queue (limit={args.limit}) ...")
+    print(f">>> Fetching work queue (limit={args.limit}" + (f", categories={only_cats}" if only_cats else "") + ") ...")
     try:
-        rows = fetch_work_queue(args.limit)
+        rows = fetch_work_queue(args.limit, only_categories=only_cats)
     except Exception as exc:  # noqa: BLE001
         print(f"  failed to fetch work queue: {type(exc).__name__}: {exc}")
         sys.exit(1)
